@@ -3,15 +3,22 @@ This repository contains a meticulously crafted bash script designed for automat
 
 ## technologies
 - TypeScript
-- React
-- Next.js
 - Prisma
-- TailwindCSS
-- Lucide-react
+- Next.js
+- React
+- Tailwind CSS
+- Shadcn UI & Radix UI
+- Geist font
+- Lucide icons
+- Clerk auth
 - Zod
-- Eslint
+- React Hook Form
+- ESLint
 - Prettier
-- Shadcn/ui
 - Husky
 - Lint-staged
-- shadcn
+- Commitlint
+- @vercel/analytics
+- @vercel/speed-insights
+- Date-fns
+- Lodash
