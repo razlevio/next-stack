@@ -1,60 +1,107 @@
 #!/bin/bash
 #!/usr/bin/expect -f
 
-figlet "TECHSTACK" | lolcat
+# Display a startup message
+figlet "NEXTSTACK" | lolcat
 
-# Gather information about the project
+# Section 1: Project Information Gathering
+# ----------------------------------------
 echo -n "Enter the project name: "
 read project_name
 echo -n "Enter the project description: "
 read project_description
+echo "Are you using Prisma (y/n)"
+read using_prisma
+echo "Are you deploying on Vercel? (y/n)"
+read deploying_on_vercel
 
-# Set up the project
+# Section 2: Project Setup
+# -------------------------
 echo "Setting up the project..."
 npx create-next-app@latest $project_name
-
 cd $project_name
 
-# Add project dependencies
+# Section 3: Dependencies Installation
+# -------------------------------------
 figlet "Dependencies" | lolcat
+echo "Installing dependencies..."
 npx shadcn-ui@latest init
-npx shadcn-ui@latest add dropdown-menu button
+npx shadcn-ui@latest add dropdown-menu button alert-dialog dialog label 
 echo "Choose components to install:"
 npx shadcn-ui@latest add
-echo "Installing some more dependencies..."
-npm install --loglevel=error geist date-fns lodash lucide-react @clerk/nextjs @prisma/client next-themes react-hook-form @hookform/resolvers zod @vercel/analytics @vercel/speed-insights zod
-npm install -D --loglevel=error @ianvs/prettier-plugin-sort-imports eslint-config-prettier eslint-plugin-prettier eslint-plugin-react eslint-plugin-tailwindcss husky lint-staged prettier prettier-plugin-tailwindcss prisma @commitlint/cli @commitlint/config-conventional
 
-# Initialize technologies and config files
+echo "Installing some more dependencies..."
+# Install main application dependencies based on user choice
+if [ "$using_prisma" = "y" ]; then
+    # Prisma
+    npm install --loglevel=error lucide-react geist next-themes @clerk/nextjs zustand zod react-hook-form @hookform/resolvers usehooks-ts sonner lodash date-fns @prisma/client
+    npx prisma init > /dev/null
+else
+    npm install --loglevel=error lucide-react geist next-themes @clerk/nextjs zustand zod react-hook-form @hookform/resolvers usehooks-ts sonner lodash date-fns
+fi
+
+# Conditional installation for Vercel
+if [ "$deploying_on_vercel" = "y" ]; then
+    npm install --loglevel=error @vercel/analytics @vercel/speed-insights
+fi
+
+# Install dev dependencies
+npm install -D --loglevel=error eslint-config-prettier eslint-plugin-prettier eslint-plugin-react eslint-plugin-tailwindcss prettier prettier-plugin-tailwindcss @ianvs/prettier-plugin-sort-imports husky lint-staged @commitlint/cli @commitlint/config-conventional
+
+# Section 4: Project Configuration and File Creation
+# -------------------------------------------------
 figlet "Configuration" | lolcat
 echo "Making project configurations..."
-rm ./tailwind.config.ts ./public/next.svg ./public/vercel.svg ./app/favicon.ico ./app/globals.css
-mkdir config types hooks
-touch middleware.ts ./config/app.ts ./lib/db.ts ./lib/fonts.ts ./lib/constants.ts ./types/index.d.ts ./types/schemas.ts ./components/ui/icons.tsx ./public/favicon.ico ./public/robots.txt ./hooks/use-debounce.ts .env.example .env .prettierignore prettier.config.js .lintstagedrc.js .eslintignore .commitlintrc.json .editorconfig ./components/theme-provider.tsx ./components/theme-toggle.tsx ./components/navbar.tsx
-npx prisma init > /dev/null 
-npx husky-init > /dev/null && npm install > /dev/null
-touch ./.husky/commit-msg
-chmod +x ./.husky/commit-msg
+rm ./public/next.svg ./public/vercel.svg ./app/favicon.ico ./app/globals.css
+mkdir components/modals components/providers config hooks scripts types
+touch middleware.ts \
+prettier.config.js \
+.env \
+.prettierignore \
+.lintstagedrc.js \
+.eslintignore \
+.commitlintrc.json \
+.editorconfig \
+./public/favicon.ico \
+./public/robots.txt \
+./components/providers/theme-provider.tsx \
+./components/providers/modal-provider.tsx \
+./components/modals/settings-modal.tsx \
+./components/modals/confirm-modal.tsx \
+./components/theme-toggle.tsx \
+./components/navbar.tsx \
+./components/ui/icons.tsx \
+./config/app.ts \
+./hooks/use-debounce.tsx \
+./hooks/use-origin.tsx \
+./hooks/use-search.tsx \
+./hooks/use-settings.tsx \
+./lib/db.ts \
+./lib/fonts.ts \
+./lib/constants.ts \
+./types/index.d.ts \
+./types/schemas.ts 
 
-cat << 'EOF' > ./.husky/commit-msg
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
+# Initialize Husky for Git hooks
+npx husky-init && npm install
+jq '.scripts.test = "echo \"No tests specified\" && exit 0"' package.json > temp.json && mv temp.json package.json
+npx husky add .husky/commit-msg 'npx commitlint --edit "$1"'
+npx husky add .husky/pre-commit 'npx lint-staged --concurrent false'
 
-npx commitlint --edit $1
 
-# TODO: chmod +x .husky/commit-msg -> Execute this in the terminal to let the script run
-EOF
-
+# Section 5: File Content Creation
+# --------------------------------
+# Content creation for various config and component files
 cat << 'EOF' > ./types/index.d.ts
-import { User } from "@prisma/client"
 import type { Icon } from "lucide-react"
-import { Icons } from "@/components/icons"
 
 export type AppConfig = {
   name: string
   description: string
   url: string
 }
+
+export type Icon = Icon
 EOF
 
 cat << EOF > ./config/app.ts
@@ -67,15 +114,178 @@ export const appConfig: AppConfig = {
 }
 EOF
 
-cat << 'EOF' > ./components/theme-provider.tsx
+cat << 'EOF' > ./components/providers/theme-provider.tsx
 "use client"
 
 import { ThemeProvider as NextThemesProvider } from "next-themes"
 import { type ThemeProviderProps } from "next-themes/dist/types"
 
+/**
+ * ThemeProvider component wraps its children with the NextThemesProvider.
+ * This provider facilitates theme switching and provides theme-related utilities.
+ * 
+ * @param {ThemeProviderProps} props - Props for configuring the NextThemesProvider.
+ * @returns The ThemeProvider component.
+ */
 export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
   return <NextThemesProvider {...props}>{children}</NextThemesProvider>
 }
+EOF
+
+cat << 'EOF' > ./components/providers/modal-provider.tsx
+"use client";
+
+import { useEffect, useState } from "react";
+import { SettingsModal } from "@/components/modals/settings-modal";
+
+/**
+ * ModalProvider component is responsible for rendering modals throughout the application.
+ * It ensures that the modals are only mounted client-side to prevent issues with SSR.
+ * 
+ * @returns The ModalProvider component.
+ */
+export function ModalProvider() {
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Effect to set the component as mounted after initial render.
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Render null until the component has mounted to prevent SSR hydration issues.
+  if (!isMounted) return null;
+
+  // Render the modals.
+  return (
+    <>
+      <SettingsModal />
+    </>
+  );
+}
+EOF
+
+cat << 'EOF' > ./components/modals/confirm-modal.tsx
+"use client";
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+
+/**
+ * Props for the ConfirmModal component.
+ * @property {React.ReactNode} children - The trigger element that opens the modal.
+ * @property {Function} onConfirm - The callback function to execute when the confirm action is taken.
+ */
+type ConfirmModalProps = {
+  children: React.ReactNode;
+  onConfirm: () => void;
+}
+
+/**
+ * ConfirmModal component provides a user interface for confirmation actions.
+ * It uses an AlertDialog to prompt the user to confirm or cancel an important action.
+ *
+ * @param {ConfirmModalProps} props - The props for the component.
+ * @returns The ConfirmModal component.
+ */
+export const ConfirmModal = ({ children, onConfirm }: ConfirmModalProps) => {
+  /**
+   * Handles the confirm action.
+   * Prevents event propagation and executes the onConfirm callback.
+   *
+   * @param {React.MouseEvent<HTMLButtonElement, MouseEvent>} e - The click event.
+   */
+  const handleConfirm = (
+    e: React.MouseEvent<HTMLButtonElement, MouseEvent>
+  ) => {
+    e.stopPropagation();
+    onConfirm();
+  };
+
+  return (
+    <AlertDialog>
+      {/* Trigger element to open the modal, stopping propagation to prevent unintended behavior. */}
+      <AlertDialogTrigger onClick={(e) => e.stopPropagation()} asChild>
+        {children}
+      </AlertDialogTrigger>
+
+      {/* Content of the modal, including header, description, and footer with actions. */}
+      <AlertDialogContent>
+        {/* Header section with the title and description of the confirmation. */}
+        <AlertDialogHeader>
+          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This action cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+
+        {/* Footer section with the actions to confirm or cancel. */}
+        <AlertDialogFooter>
+          {/* Cancel action, also stopping propagation. */}
+          <AlertDialogCancel onClick={(e) => e.stopPropagation()}>
+            Cancel
+          </AlertDialogCancel>
+          {/* Confirm action, handled by handleConfirm. */}
+          <AlertDialogAction onClick={handleConfirm}>Confirm</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+};
+EOF
+
+cat << 'EOF' > ./components/modals/settings-modal.tsx
+"use client"
+
+import { Label } from "@/components/ui/label";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { Dialog, DialogContent, DialogHeader} from "@/components/ui/dialog";
+import { useSettings } from "@/hooks/use-settings";
+
+/**
+ * SettingsModal component provides a user interface for application settings.
+ * It utilizes a dialog to present various setting options like theme mode toggle.
+ */
+export function SettingsModal() {
+  // Hook to manage settings state.
+  const settings = useSettings();
+
+  return (
+    // Dialog component for the modal interface.
+    <Dialog open={settings.isOpen} onOpenChange={settings.onClose}>
+      <DialogContent>
+        {/* Header section of the dialog with the title. */}
+        <DialogHeader className="border-b pb-3">
+          <h2 className="text-lg font-medium">My settings</h2>
+        </DialogHeader>
+        {/* Content section with setting options. */}
+        <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-y-1">
+            {/* Label for the appearance settings section. */}
+            <Label>
+              Appearance
+            </Label>
+            {/* Description for the appearance settings section. */}
+            <span className="">
+              Customize how workspace looks on your device
+            </span>
+          </div>
+          {/* Toggle component for changing the mode (e.g., dark/light). */}
+          <ThemeToggle />
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 EOF
 
 cat << 'EOF' > ./components/theme-toggle.tsx
@@ -220,95 +430,23 @@ export function Navbar() {
     <div></div>
 	)
 }
-
 EOF
 
 cat << 'EOF' > ./middleware.ts
 import { authMiddleware } from "@clerk/nextjs"
 
-export default authMiddleware({publicRoutes: ['/api/calculate']});
+export default authMiddleware({publicRoutes: ["/"]});
 
 export const config = {
 	matcher: ["/((?!.+\\.[\\w]+$|_next).*)", "/", "/(api|trpc)(.*)"],
 }
 EOF
 
-cat << 'EOF' > ./styles/globals.css
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
- 
-@layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
- 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
- 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
- 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
- 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
- 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
- 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
- 
-    --radius: 0.5rem;
-  }
- 
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
- 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
- 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
- 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
- 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
- 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
- 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
- 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
- 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-  }
-}
- 
-@layer base {
-  * {
-    @apply border-border;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
+cat << 'EOF' >> ./styles/globals.css
+html,
+body,
+:root {
+  height: 100%;
 }
 
 code {
@@ -327,7 +465,7 @@ hr {
 }
 EOF
 
-cat << 'EOF' > ./hooks/use-debounce.ts
+cat << 'EOF' > ./hooks/use-debounce.tsx
 import { useEffect, useState } from "react"
 
 /**
@@ -352,15 +490,120 @@ export function useDebounce<T>(value: T, delay?: number): T {
 }
 EOF
 
+cat << 'EOF' > ./hooks/use-origin.tsx
+import { useEffect, useState } from "react";
+
+/**
+ * Custom hook to retrieve the origin (protocol + hostname + port) of the current page.
+ * It ensures that it only returns the origin after the component has mounted to avoid issues with server-side rendering.
+ *
+ * @returns {string} The origin of the current page, or an empty string if not yet mounted or if running server-side.
+ */
+export const useOrigin = () => {
+  // State to track if the component has mounted.
+  const [mounted, setMounted] = useState(false);
+
+  // Define the origin based on the window's location if available.
+  const origin =
+    typeof window !== "undefined" && window.location.origin
+      ? window.location.origin
+      : "";
+
+  useEffect(() => {
+    // Set the component as mounted when the effect runs after initial render.
+    setMounted(true);
+  }, []); // Empty dependency array means this runs once after the initial render.
+
+  // Return an empty string until the component has mounted to avoid SSR issues.
+  if (!mounted) {
+    return "";
+  }
+
+  // Return the origin once the component has mounted.
+  return origin;
+};
+EOF
+
+cat << 'EOF' > ./hooks/use-search.tsx
+import { create } from "zustand";
+
+/**
+ * Type definition for the search store.
+ * @typedef SearchStore
+ * @property {boolean} isOpen - Boolean indicating if the search is open.
+ * @property {Function} onOpen - Function to set isOpen to true.
+ * @property {Function} onClose - Function to set isOpen to false.
+ * @property {Function} toggle - Function to toggle the isOpen state.
+ */
+type SearchStore = {
+  isOpen: boolean;
+  onOpen: () => void;
+  onClose: () => void;
+  toggle: () => void;
+};
+
+/**
+ * Custom hook to manage search UI state.
+ * This hook utilizes Zustand, a small, fast and scalable bearbones state-management solution.
+ * It provides a simple API to open, close, and toggle the search UI's visibility.
+ *
+ * @returns {SearchStore} The search store with isOpen state and handlers for opening, closing, and toggling.
+ */
+export const useSearch = create<SearchStore>((set, get) => ({ 
+  // Initial state: search UI is not open.
+  isOpen: false,
+  // Handler to open the search UI: sets isOpen to true.
+  onOpen: () => set({ isOpen: true }),
+  // Handler to close the search UI: sets isOpen to false.
+  onClose: () => set({ isOpen: false }),
+  // Handler to toggle the search UI's visibility.
+  toggle: () => set({ isOpen: !get().isOpen }),
+}));
+EOF
+
+cat << 'EOF' > ./hooks/use-settings.tsx
+import { create } from "zustand";
+
+/**
+ * Type definition for the settings store.
+ * @typedef SettingsStore
+ * @property {boolean} isOpen - Boolean indicating if the setting is open.
+ * @property {Function} onOpen - Function to set isOpen to true.
+ * @property {Function} onClose - Function to set isOpen to false.
+ */
+type SettingsStore = {
+  isOpen: boolean;
+  onOpen: () => void;
+  onClose: () => void;
+};
+
+/**
+ * Custom hook to manage settings.
+ * This hook utilizes Zustand, a small, fast and scalable bearbones state-management solution.
+ * @returns {SettingsStore} The settings store with isOpen state and handlers for opening and closing.
+ */
+export const useSettings = create<SettingsStore>((set) => ({
+  // Initial state: settings are not open.
+  isOpen: false,
+  // Handler to open settings: sets isOpen to true.
+  onOpen: () => set({ isOpen: true }),
+  // Handler to close settings: sets isOpen to false.
+  onClose: () => set({ isOpen: false }),
+}));
+EOF
+
+if [ "$deploying_on_vercel" = "y" ]; then
 cat << 'EOF' > ./app/layout.tsx
 import "@/styles/globals.css"
 import { Metadata } from "next"
-import { Analytics } from "@vercel/analytics/react"
-import { SpeedInsights } from "@vercel/speed-insights/next"
 import { appConfig } from "@/config/app"
 import { geist, geistMono } from "@/lib/fonts"
 import { cn } from "@/lib/utils"
-import { ThemeProvider } from "@/components/theme-provider"
+import { ModalProvider } from "@/components/providers/modal-provider";
+import { ThemeProvider } from "@/components/providers/theme-provider"
+import { Toaster } from "sonner";
+import { Analytics } from "@vercel/analytics/react"
+import { SpeedInsights } from "@vercel/speed-insights/next"
 
 export const metadata: Metadata = {
   title: {
@@ -403,24 +646,96 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={cn("h-full tracking-tighter", geist.className, geist.variable, geistMono.variable)}>
+    <html lang="en" className={cn("h-full", geist.className, geist.variable, geistMono.variable)} suppressHydrationWarning>
+      <body>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <body>
-            {children}
-            <Analytics />
-            <SpeedInsights />
-          </body>
+          <Toaster position="bottom-center" />
+          <ModalProvider />
+          {children}
+          <Analytics />
+          <SpeedInsights />
         </ThemeProvider>
+      </body>
     </html>
   )
 }
 EOF
+else 
+cat << 'EOF' > ./app/layout.tsx
+import "@/styles/globals.css"
+import { Metadata } from "next"
+import { appConfig } from "@/config/app"
+import { geist, geistMono } from "@/lib/fonts"
+import { cn } from "@/lib/utils"
+import { ModalProvider } from "@/components/providers/modal-provider";
+import { ThemeProvider } from "@/components/theme-provider"
+import { Toaster } from "sonner";
+import { Analytics } from "@vercel/analytics/react"
+import { SpeedInsights } from "@vercel/speed-insights/next"
+
+export const metadata: Metadata = {
+  title: {
+    default: appConfig.name,
+    template: "%s | " + appConfig.name,
+  },
+  applicationName: appConfig.name,
+  description: appConfig.description,
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+  authors: [
+    {
+      name: "razlevio",
+      url: "https://github.com/razlevio",
+    },
+  ],
+  creator: "razlevio",
+  icons: {
+    icon: "/favicon.png",
+    shortcut: "/favicon.png",
+  },
+  verification: {
+    google: 'google',
+    yandex: 'yandex',
+  },
+}
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="en" className={cn("h-full", geist.className, geist.variable, geistMono.variable)} suppressHydrationWarning>
+      <body>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <Toaster position="bottom-center" />
+          <ModalProvider />
+          {children}
+          <Analytics />
+          <SpeedInsights />
+        </ThemeProvider>
+      </body>
+    </html>
+  )
+}
+EOF
+fi
 
 cat << 'EOF' > ./app/page.tsx
 export default function RootPage() {
   return (
     <main className="p-6 mx-auto max-w-7xl sm:px-4">
       <h1 className="font-extrabold text-7xl">Hello World</h1>
+      <h2 className="text-xl mt-8">- Currently the app is not protected, update middleware and auth keys accordingly</h2>
     </main>
   )
 }
@@ -484,8 +799,8 @@ export const geistMono = GeistMono
 EOF
 
 
-cat << 'EOF' > ./.env.example
-# TODO: Copy .env.example to .env and update the variables.
+cat << 'EOF' > ./.env
+# TODO:u pdate the variables since they are just placeholders
 # -----------------------------------------------------------------------------
 # App
 # -----------------------------------------------------------------------------
@@ -495,8 +810,8 @@ NODE_ENV="development" # development | production
 # -----------------------------------------------------------------------------
 # Authentication (Clerk.js)
 # -----------------------------------------------------------------------------
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
-CLERK_SECRET_KEY=
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_YWR2YW5jZWQtaGF3ay04NS5jbGVyay5hY2NvdW50cy5kZXYk
+CLERK_SECRET_KEY=sk_test_DgCuddxyEm3mAhzAatT1H3glFFPSULPCSfJRVLhc83
 
 
 # -----------------------------------------------------------------------------
@@ -660,7 +975,7 @@ const nextConfig = {
 module.exports = nextConfig
 EOF
 
-cat << 'EOF' > ./tailwind.config.js
+cat << 'EOF' > ./tailwind.config.ts
 const { fontFamily } = require("tailwindcss/defaultTheme")
 
 /** @type {import('tailwindcss').Config} */
@@ -746,16 +1061,6 @@ module.exports = {
 }
 EOF
 
-
-cat << 'EOF' > ./.husky/pre-commit
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
-npx lint-staged --concurrent false
-EOF
-
-chmod +x ./.husky/pre-commit
-
 cat << 'EOF' > ./.lintstagedrc.js
 const path = require("path")
 
@@ -813,19 +1118,12 @@ cat << 'EOF' > ./README.md
 ${project_description}
 EOF
 
-# Commiting the project initializition
+# Section 6: Git Initialization and Final Steps
+# ---------------------------------------------
 git add . && git commit -m "chore(project-setup): establish structure and configuration"
-
-# Syncing with GitHub repo
-# git remote add origin git@github.com:razlevio/$project_name.git
-# git branch -M main
-# git push -u origin main
-
-
 figlet "Happy Coding!" | lolcat
 echo ""
 echo "To start the project: cd $project_name -> npm run dev"
-echo ""
 echo "To push the project to GitHub repository:"
 echo ""
 echo "git remote add origin git@github.com:razlevio/$project_name.git"
