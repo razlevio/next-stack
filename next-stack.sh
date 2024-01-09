@@ -800,7 +800,7 @@ EOF
 
 
 cat << 'EOF' > ./.env
-# TODO:u pdate the variables since they are just placeholders
+# TODO: update the variables since they are just placeholders
 # -----------------------------------------------------------------------------
 # App
 # -----------------------------------------------------------------------------
@@ -812,6 +812,42 @@ NODE_ENV="development" # development | production
 # -----------------------------------------------------------------------------
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_YWR2YW5jZWQtaGF3ay04NS5jbGVyay5hY2NvdW50cy5kZXYk
 CLERK_SECRET_KEY=sk_test_DgCuddxyEm3mAhzAatT1H3glFFPSULPCSfJRVLhc83
+
+
+# -----------------------------------------------------------------------------
+# Database
+# -----------------------------------------------------------------------------
+DATABASE_URL=""
+
+# -----------------------------------------------------------------------------
+# Subscriptions (Stripe)
+# -----------------------------------------------------------------------------
+STRIPE_API_KEY=
+STRIPE_WEBHOOK_SECRET=
+STRIPE_PRO_MONTHLY_PLAN_ID=
+
+# -----------------------------------------------------------------------------
+# Email (Postmark)
+# -----------------------------------------------------------------------------
+SMTP_FROM=
+POSTMARK_API_TOKEN=
+POSTMARK_SIGN_IN_TEMPLATE=
+POSTMARK_ACTIVATION_TEMPLATE=
+EOF
+
+cat << 'EOF' > ./.env.example
+# TODO: update the variables since they are just placeholders
+# -----------------------------------------------------------------------------
+# App
+# -----------------------------------------------------------------------------
+NEXT_PUBLIC_APP_URL=http://localhost:3000 # http://localhost:3000 in development | https://app.domain.com in production
+NODE_ENV="development" # development | production
+
+# -----------------------------------------------------------------------------
+# Authentication (Clerk.js)
+# -----------------------------------------------------------------------------
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
+CLERK_SECRET_KEY=
 
 
 # -----------------------------------------------------------------------------
