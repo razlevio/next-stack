@@ -53,7 +53,7 @@ npm install -D --loglevel=error eslint-config-prettier eslint-plugin-prettier es
 figlet "Configuration" | lolcat
 echo "Making project configurations..."
 rm ./public/next.svg ./public/vercel.svg ./app/favicon.ico ./app/globals.css
-mkdir components/modals components/providers config hooks scripts types
+mkdir components/modals components/providers config hooks scripts types schemas styles
 touch middleware.ts \
 prettier.config.js \
 .env \
@@ -888,7 +888,7 @@ cat << 'EOF' > ./.eslintrc.json
   "settings": {
     "tailwindcss": {
       "callees": ["cn"],
-			"config": "tailwind.config.js"
+			"config": "tailwind.config.ts"
     },
     "next": {
       "rootDir": true
